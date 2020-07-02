@@ -201,7 +201,7 @@ void loop() {
   }
 
   if(animation.isExpired()) { //animations
-    animation.set(2000);
+    animation.set(1000+(random(5)*500));
   }
 }
 
