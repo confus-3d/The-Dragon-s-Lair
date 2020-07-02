@@ -84,6 +84,7 @@ Timer dragonTimer; //a second multipurpse timer used to keep track of things whe
 Timer cooldownTimer; //timer which ensure that there is no signal blowback
 Timer resetTimer; //used for animations
 Timer effectdelayTimer; //timer to delay fireball propogation
+Timer animation; //timer for animations
 
 void setup() {
   // put your setup code here, to run once:
@@ -196,74 +197,11 @@ void loop() {
 
 //Tile comunication - send out active lair state
   if (effectdelayTimer.isExpired()) {
-    byte sendData;
-    switch (lairState) {
-      case NN:
-        sendData = (lairState);
-        break;
-      case NV:
-        sendData = (lairState);
-        break;
-      case GN:
-        sendData = (lairState);
-        break;
-      case GM:
-        sendData = (lairState);
-        break;
-      case GP:
-        sendData = (lairState);
-        break;
-      case GV:
-        sendData = (lairState);
-        break;
-      case RN:
-        sendData = (lairState);
-        break;
-      case RV:
-        sendData = (lairState);
-        break;
-      case EN:
-        sendData = (lairState);
-        break;
-      case EV:
-        sendData = (lairState);
-        break;
-      case FIREBALL:
-        sendData = (lairState);
-        break;
-      case POISON1:
-        sendData = (lairState);
-        break;
-      case POISON2:
-        sendData = (lairState);
-        break;
-      case POISON3:
-        sendData = (lairState);
-        break;
-      case DRAGON:
-        sendData = (lairState);
-        break;
-      case DRAGONF:
-        sendData = (lairState);
-        break;
-      case DRAGONP:
-        sendData = (lairState);
-        break;
-      case DRAGONV:
-        sendData = (lairState);
-        break;
-      case TH:
-        sendData = (lairState);
-        break;
-      case SCOREMODE:
-        sendData = (lairState);
-        break;
-      case SCOREMODE2:
-        sendData = (lairState);
-        break;
-    }
+    setValueSentOnAllFaces(lairState);
+  }
 
-    setValueSentOnAllFaces(sendData);
+  if(animation.isExpired()) { //animations
+    animation.set(2000);
   }
 }
 
@@ -445,25 +383,25 @@ void dragonpLoop() { // loop for when the dragon is sending out a poison signal
   
 void dragonvLoop() { // loop for when the dragon is sending out a void signal - Also used as helper loop for quasi phase one of void effect
   if (effectTimer.isExpired()) {
-    if (voidlairType == 0)  {
-      effectTimer.set(Void_IntervalB);
+    effectTimer.set(Void_IntervalB);
+    switch (voidlairType) {
+      case 0:
       lairState = NV;
-    }
-    if (voidlairType == 1) {
-      effectTimer.set(Void_IntervalB);
+      break;
+      case 1:
       lairState = GV;
-    }
-    if (voidlairType == 2) {
-      effectTimer.set(Void_IntervalB);
+      break;
+      case 2:
       lairState = RV;
-    }
-    if (voidlairType == 3) {
-      effectTimer.set(Void_IntervalB);
+      break;
+      case 3:
       lairState = EV;
-    }
-    if (voidlairType == 4) {
+      break;
+      case 4:
       lairState = DRAGON;
-  }
+      break;
+    }
+    
  }
 } 
 
@@ -582,7 +520,7 @@ void offDisplayLoop() { // display loop for all lair state that are dark
 }
 
 void goldDisplayLoop() { //display loop for non-mining gold tile
-  setColor(YELLOW);
+  setColor(dim(YELLOW, ((animation.getRemaining()/16)+125)));
 }
 
 void gmDisplayLoop() { //animation for gold being mined
@@ -599,19 +537,23 @@ void gmDisplayLoop() { //animation for gold being mined
 }
 
 void rubyDisplayLoop() { //display loop for ruby treasure with no active dragon effects.
-  setColor(RED);
+  setColor(dim(RED, animation.getRemaining()/8));
 }
 
 void emeraldDisplayLoop() { //display loop for emerald treasure with no active dragon effects.
-  setColor(GREEN);
+  setColor(dim(GREEN, animation.getRemaining()/8));
 }
 
 void fireballDisplayLoop() { //display loop for lair tiles actively affected by the fireball attack
-  setColor(ORANGE);
+  FOREACH_FACE(f) {
+    setColorOnFace(dim(ORANGE, 51 + 51*random(4)), f);
+  }
 }
 
 void poisonDisplayLoop() { //display loop for lair tiles actively affected by the poison attack
-  setColor(MAGENTA);
+  FOREACH_FACE(f) {
+    setColorOnFace(dim(MAGENTA, 51 + 51*random(4)), f);
+  }
 }
 
 void dragonDisplayLoop() { //dragon animation
