@@ -107,6 +107,7 @@ void loop() {
       lairState = RESET;
       effectdelayTimer.set(250);
     }
+    
   
     FOREACH_FACE(f) {
       if ( !isValueReceivedOnFaceExpired( f ) ) { // Have we seen an neighbor
@@ -119,6 +120,9 @@ void loop() {
       }
     }
   } 
+  if (resetPressed == 1) {
+      setColor(WHITE);
+  }
 
   
   if (buttonDoubleClicked()) { //input to set blink to treasure hunter player tile
