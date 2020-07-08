@@ -1,6 +1,7 @@
 /*
   The Dragon's Lair
-  Lead development by Spencer Jenik (TheGoodSire)
+  Development by Spencer Jenik and Francisco Javier
+  Original Artwork by Francisco Javier
   Original Game by Spencer Jenik
   
   6+ Blinks
@@ -62,11 +63,9 @@
 #define Void_IntervalB 5000 // void stage 2 length
 #define Mining_Interval 3000 // time it takes to mine a gold treasure
 
-enum lairState {NN, NV, GN, GM, GP, GV, RN, RV, EN, EV, FIREBALL, POISON1, POISON2, POISON3, DRAGON, DRAGONF, DRAGONP, DRAGONV, TH, SCOREMODE, SCOREMODE2};
+enum lairState {NN, NV, GN, GM, GP, GV, RN, RV, EN, EV, FIREBALL, POISON1, POISON2, POISON3, DRAGON, DRAGONF, DRAGONP, DRAGONV, TH, SCOREMODE, SCOREMODE2, RESET};
 byte lairState = NN; //21 Unique lair states
 
-Color lairColors [5] = {OFF, YELLOW, RED, GREEN, MAGENTA}; //used for dragon animation
-byte animationIndex = 0; //used for dragon and gold mine animation
 
 int voidlairType = 0;
 int dragonattackTime = 15000;
@@ -78,12 +77,13 @@ int Score = 0; //score storage for ones of points
 int Scoretemp = 0;
 int Luck = 3; //tracks current player luck
 
+byte resetPressed = 0;
+
 ////LAIR Variables
 Timer effectTimer; //multipurpose timer used to keep track of dragon attack lengths
 Timer dragonTimer; //a second multipurpse timer used to keep track of things when effectTimer is already in use
-Timer cooldownTimer; //timer which ensure that there is no signal blowback
 Timer resetTimer; //used for animations
-Timer effectdelayTimer; //timer to delay fireball propogation
+Timer effectdelayTimer; //timer which ensure that there is no signal blowback
 Timer animation; //timer for animations
 
 void setup() {
@@ -92,20 +92,43 @@ randomize(); // make sure that the treasures are unique //ensure random number g
 effectTimer.set(random(2000) + Reset_Interval); //sets initial wait for treasures to spawn
 }
 
-void loop() {
-  if (buttonDoubleClicked()) { //input to set blink to lair tile
-    lairState = NN;
-    effectTimer.set(random(2000) + Reset_Interval);
+void resetLoop() { //Timer to reset the game
+  if (effectdelayTimer.isExpired()){
+        lairState = NN;  
+        effectTimer.set(random(2000) + Reset_Interval);
+        effectdelayTimer.set(250);
   }
+}
+
+void loop() {
+  if (resetPressed == 0) {
+    if (buttonLongPressed()) {
+      resetPressed = 1;
+      lairState = RESET;
+      effectdelayTimer.set(250);
+    }
   
-  if (buttonMultiClicked()) { //input to set blink to treasure hunter player tile
+    FOREACH_FACE(f) {
+      if ( !isValueReceivedOnFaceExpired( f ) ) { // Have we seen an neighbor
+        byte neighborGameState = getLairState(getLastValueReceivedOnFace(f));
+        if (neighborGameState == RESET) {
+          resetPressed = 1;
+          lairState = RESET;
+          effectdelayTimer.set(250);
+        }
+      }
+    }
+  } 
+
+  
+  if (buttonDoubleClicked()) { //input to set blink to treasure hunter player tile
     Score = 0;
     tenScore = 0;
     hundredScore = 0;
     lairState = TH;
   }
 
-  if (buttonLongPressed()) { //input to set blink to be a dragon tile
+  if (buttonMultiClicked()) { //input to set blink to be a dragon tile
     lairState = DRAGON;
     dragonTimer.set(dragonattackTime);
   }
@@ -208,7 +231,8 @@ void loop() {
 void nnLoop() { // Starting lairState where treasure type is generated and no dragon effects active
   voidlairType = 0;
   int newTreasure = 0;
-  if (cooldownTimer.isExpired()) {
+  if (effectdelayTimer.isExpired()) {
+    resetPressed = 0;
     if (effectTimer.isExpired()) { //Turning in blank lair tiles into treasure
       newTreasure = random(2);
       if (newTreasure == 0) {
@@ -224,10 +248,10 @@ void nnLoop() { // Starting lairState where treasure type is generated and no dr
         voidlairType = 3;
       }
     }
-  }
   fireballpoisoncheck();
   voidcheck();
-   }
+  }
+}
 
 void nvLoop() { // loop for a lair tile with no treasure and active void effect
   fireballpoisoncheck();
@@ -261,7 +285,8 @@ void gmLoop() { // loop for a lair tile in gold mining state
 }
 
 void gpLoop() { // loop for lair tile with gold treasure in a payout state
-  thcheck();
+  fireballpoisoncheck();
+  voidcheck();
   if (effectTimer.isExpired()) {
      effectTimer.set(random(2000) + Reset_Interval);
      lairState = NN;
@@ -315,7 +340,7 @@ void evLoop() { // loop for lair tile with emerald treasure and no dragon effect
 void fireballLoop() { // loop for lair tiles with active fireball effect
   if (effectTimer.isExpired()) {
     effectTimer.set(random(2000) + Reset_Interval);
-    cooldownTimer.set(250);
+    effectdelayTimer.set(250);
     lairState = NN;
   }
 }
@@ -411,6 +436,7 @@ void thLoop() { // main treasure hunter scoring and health tracking loop
       byte neighborLairState = getLairState(getLastValueReceivedOnFace(0));
       if (neighborLairState == GP) {
           Score = Score + 5;
+          effectTimer.set(300);
       }
       if (neighborLairState == RN || neighborLairState == RV || neighborLairState == EN || neighborLairState == EV || neighborLairState == FIREBALL || neighborLairState == POISON1 || neighborLairState == POISON2 || neighborLairState == POISON3) {
           Luck = Luck - 1;
@@ -421,6 +447,7 @@ void thLoop() { // main treasure hunter scoring and health tracking loop
       byte neighborLairState = getLairState(getLastValueReceivedOnFace(2));
       if (neighborLairState == RN || neighborLairState == RV) {
         Score = Score + 1;
+        effectTimer.set(300);
       }
        if (neighborLairState == GN || neighborLairState == GM || neighborLairState == GV || neighborLairState == GP || neighborLairState == EN || neighborLairState == EV || neighborLairState == FIREBALL || neighborLairState == POISON1 || neighborLairState == POISON2 || neighborLairState == POISON3) {
         Luck = Luck - 1;
@@ -431,6 +458,7 @@ void thLoop() { // main treasure hunter scoring and health tracking loop
       byte neighborLairState = getLairState(getLastValueReceivedOnFace(4));
       if (neighborLairState == EN || neighborLairState == EV) {
           Score = Score + 1;
+          effectTimer.set(300);
       }
       if (neighborLairState == GN || neighborLairState == GM || neighborLairState == GV || neighborLairState == GP || neighborLairState == RN || neighborLairState == RV || neighborLairState == FIREBALL || neighborLairState == POISON1 || neighborLairState == POISON2 || neighborLairState == POISON3) {
           Luck = Luck - 1;
@@ -524,16 +552,12 @@ void goldDisplayLoop() { //display loop for non-mining gold tile
 }
 
 void gmDisplayLoop() { //animation for gold being mined
-  if (resetTimer.isExpired()) {
-    resetTimer.set(50);
-    animationIndex = (animationIndex + 1) % (6*7);
-  if (((animationIndex / 7) % 2) == 0) {
-    setColorOnFace(YELLOW, animationIndex % 6);
-  }
-  else {
-    setColorOnFace(WHITE, animationIndex % 6);
-  }
- }
+  setColorOnFace(YELLOW, 0);
+  if (effectTimer.getRemaining()>500) setColorOnFace(YELLOW, 1);
+  if (effectTimer.getRemaining()>1000) setColorOnFace(YELLOW, 2);
+  if (effectTimer.getRemaining()>1500) setColorOnFace(YELLOW, 3);
+  if (effectTimer.getRemaining()>2000) setColorOnFace(YELLOW, 4);
+  if (effectTimer.getRemaining()>2500) setColorOnFace(YELLOW, 5);
 }
 
 void rubyDisplayLoop() { //display loop for ruby treasure with no active dragon effects.
@@ -557,12 +581,12 @@ void poisonDisplayLoop() { //display loop for lair tiles actively affected by th
 }
 
 void dragonDisplayLoop() { //dragon animation
-  if (resetTimer.isExpired()) {
-    resetTimer.set(50);
-    animationIndex = (animationIndex + 1) % ( 6 * 7 * 4);
-    byte index = ((animationIndex / 7) % 4) + 1;
-    setColorOnFace(lairColors[index], animationIndex % 6);
-  }
+setColorOnFace(dim(RED, animation.getRemaining()/8), 1);
+setColorOnFace(dim(RED, animation.getRemaining()/8), 3);
+setColorOnFace(dim(RED, animation.getRemaining()/8), 5);
+setColorOnFace(RED, 0);
+setColorOnFace(RED, 2);
+setColorOnFace(RED, 4);
 }
  
 void fireballpoisoncheck() { // helper loop used to save space in main lair state loops by checking for fireball and poison effects
@@ -598,8 +622,8 @@ void thcheck() { // helper loop used to save space in main lair state loops by c
     if ( !isValueReceivedOnFaceExpired( f ) ) {
       byte neighborLairState = getLairState(getLastValueReceivedOnFace(f));
       if (neighborLairState == TH) {
-        effectTimer.set(Mining_Interval);
-        lairState = GM;
+         effectTimer.set(random(2000) + Reset_Interval);
+         lairState = NN;
       }
   }
  }
